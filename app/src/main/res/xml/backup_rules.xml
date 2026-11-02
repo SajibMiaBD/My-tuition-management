@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Backup rules file for Google Drive Auto Backup.
+   Includes database and shared preferences so that uninstalling and reinstalling
+   automatically restores student data and settings.
+-->
+<full-backup-content>
+    <include domain="database" path="." />
+    <include domain="sharedpref" path="." />
+</full-backup-content>

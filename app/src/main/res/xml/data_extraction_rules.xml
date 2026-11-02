@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Data extraction rules for Android 12+ (API 31+) cloud backup and device transfer.
+   Includes all database files and preferences so that uninstalling and reinstalling
+   automatically restores student data and settings.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="database" path="." />
+        <include domain="sharedpref" path="." />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="database" path="." />
+        <include domain="sharedpref" path="." />
+    </device-transfer>
+</data-extraction-rules>

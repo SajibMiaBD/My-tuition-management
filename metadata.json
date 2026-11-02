@@ -1,0 +1,6 @@
+{
+  "name": "My Tuition Manager",
+  "description": "টিউশন ফি ও শিক্ষার্থী ম্যানেজমেন্ট অ্যাপ - হিসাব রাখুন সহজেই",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
