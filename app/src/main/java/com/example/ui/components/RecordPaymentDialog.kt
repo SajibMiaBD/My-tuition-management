@@ -56,6 +56,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.domain.BillingPeriod
 import com.example.domain.PaymentStatus
 import com.example.domain.StudentBillingSummary
@@ -270,7 +271,7 @@ fun RecordPaymentDialog(
                 Spacer(modifier = Modifier.height(14.dp))
 
                 // 3. Enter Payment Amount
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = amountStr,
                     onValueChange = {
                         amountStr = it
@@ -373,7 +374,7 @@ fun RecordPaymentDialog(
                     }
                 }
                 Spacer(modifier = Modifier.height(4.dp))
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = notes,
                     onValueChange = { notes = it },
                     placeholder = { Text(Strings.notesPlaceholder(currentLanguage)) },
@@ -431,66 +432,96 @@ fun PeriodSelectionCard(
     currentLanguage: AppLanguage = AppLanguage.BN,
     onSelect: () -> Unit
 ) {
-    val bgColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+    val bgColor = if (isSelected) {
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+    }
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(12.dp))
             .clickable { onSelect() }
             .border(
                 width = if (isSelected) 2.dp else 1.dp,
                 color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                shape = RoundedCornerShape(10.dp)
+                shape = RoundedCornerShape(12.dp)
             ),
         color = bgColor,
-        shape = RoundedCornerShape(10.dp)
+        shape = RoundedCornerShape(12.dp)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.Top
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(18.dp)
-                        .clip(CircleShape)
-                        .border(
-                            width = 2.dp,
-                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                            shape = CircleShape
-                        )
-                        .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (isSelected) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(Color.White)
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Column {
-                    Text(
-                        text = "${Strings.periodTitle(currentLanguage, BengaliFormatter.formatDigits(period.periodNumber, currentLanguage))}: ${BengaliFormatter.formatPeriodRange(period.startDate, period.endDate, currentLanguage)}",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+            // Radio Circle indicator aligned with first line
+            Box(
+                modifier = Modifier
+                    .padding(top = 2.dp)
+                    .size(20.dp)
+                    .clip(CircleShape)
+                    .border(
+                        width = 2.dp,
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                        shape = CircleShape
                     )
-                    Text(
-                        text = "${Strings.feeColon(currentLanguage)} ${BengaliFormatter.formatCurrency(period.fee, currentLanguage)} | ${Strings.paidColon(currentLanguage)} ${BengaliFormatter.formatCurrency(period.paidAmount, currentLanguage)}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isSelected) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(Color.White)
                     )
                 }
             }
-            StatusBadge(status = period.status, lang = currentLanguage)
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                // Line 1: Period number + full date range on a single clean line
+                val periodNumStr = BengaliFormatter.formatDigits(period.periodNumber, currentLanguage)
+                val periodTitle = Strings.periodTitle(currentLanguage, periodNumStr)
+                val dateRange = BengaliFormatter.formatPeriodRange(period.startDate, period.endDate, currentLanguage)
+
+                Text(
+                    text = "$periodTitle: $dateRange",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    softWrap = false
+                )
+
+                // Line 2: Ongoing / Upcoming (or status badge)
+                StatusBadge(status = period.status, lang = currentLanguage)
+
+                // Line 3: Fee details (Fee টাকা সহ)
+                val feeStr = BengaliFormatter.formatCurrency(period.fee, currentLanguage)
+                val paidStr = BengaliFormatter.formatCurrency(period.paidAmount, currentLanguage)
+                val dueStr = BengaliFormatter.formatCurrency(period.remainingAmount, currentLanguage)
+
+                val feeDetailsText = if (period.remainingAmount > 0) {
+                    "${Strings.feeColon(currentLanguage)} $feeStr | ${Strings.dueLabel(currentLanguage)}: $dueStr"
+                } else {
+                    "${Strings.feeColon(currentLanguage)} $feeStr | ${Strings.paidColon(currentLanguage)} $paidStr"
+                }
+
+                Text(
+                    text = feeDetailsText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.Medium
+                )
+            }
         }
     }
 }

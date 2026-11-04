@@ -26,6 +26,54 @@ object Strings {
     fun totalStudents(lang: AppLanguage) = if (lang == AppLanguage.BN) "মোট শিক্ষার্থী" else "Total Students"
     fun monthlyExpectedIncome(lang: AppLanguage) = if (lang == AppLanguage.BN) "প্রত্যাশিত মাসিক আয়" else "Monthly Expected Income"
     fun paymentsReceivedThisMonth(lang: AppLanguage) = if (lang == AppLanguage.BN) "চলতি মাসে আদায়কৃত" else "Received This Month"
+    fun collectionInThisMonth(lang: AppLanguage) = if (lang == AppLanguage.BN) "চলতি মাসের আদায়" else "Collection in this month"
+    fun tapToViewWhoPaid(lang: AppLanguage) = if (lang == AppLanguage.BN) "কে কে দিল দেখতে ট্যাপ করুন" else "Tap to see who paid"
+    fun thisMonthCollectionTitle(lang: AppLanguage) = if (lang == AppLanguage.BN) "চলতি মাসের আদায়ের তালিকা" else "Collection in this month"
+    fun noPaymentsThisMonthMsg(lang: AppLanguage) = if (lang == AppLanguage.BN) "এই মাসে এখনও কোনো শিক্ষার্থী পেমেন্ট দেয়নি" else "No payments received in this month yet"
+    fun payingStudentsListLabel(lang: AppLanguage) = if (lang == AppLanguage.BN) "পরিশোধকারী শিক্ষার্থীদের তালিকা:" else "Students who paid this month:"
+    fun totalCollectedThisMonthBadge(lang: AppLanguage) = if (lang == AppLanguage.BN) "মোট আদায়" else "Total Collected"
+
+    // Attendance Strings
+    fun studentAttendanceTitle(lang: AppLanguage) = if (lang == AppLanguage.BN) "শিক্ষার্থীদের উপস্থিতি" else "Student Attendance"
+    fun attendanceSubtitle(lang: AppLanguage) = if (lang == AppLanguage.BN) "তারিখভিত্তিক হাজিরা ও উপস্থিতি চার্ট" else "Daily Attendance & Visual Chart"
+    fun attendanceCardTitle(lang: AppLanguage) = if (lang == AppLanguage.BN) "শিক্ষার্থীদের উপস্থিতি" else "Student Attendance"
+    fun attendanceCardSubtitle(lang: AppLanguage) = if (lang == AppLanguage.BN) "হাজিরা দিতে ও চার্ট দেখতে ট্যাপ করুন" else "Tap to mark & view chart"
+    fun presentCountUnit(lang: AppLanguage, present: String, total: String) =
+        if (lang == AppLanguage.BN) "উপস্থিত: $present/$total জন" else "Present: $present/$total"
+    fun attendanceRateUnit(lang: AppLanguage, rate: String) =
+        if (lang == AppLanguage.BN) "$rate% উপস্থিতি" else "$rate% Present"
+    fun markAllPresent(lang: AppLanguage) = if (lang == AppLanguage.BN) "সবাই উপস্থিত" else "Mark All Present"
+    fun markAllAbsent(lang: AppLanguage) = if (lang == AppLanguage.BN) "সবাই অনুপস্থিত" else "Mark All Absent"
+    fun presentLabel(lang: AppLanguage) = if (lang == AppLanguage.BN) "উপস্থিত" else "Present"
+    fun absentLabel(lang: AppLanguage) = if (lang == AppLanguage.BN) "অনুপস্থিত" else "Absent"
+    fun unmarkedLabel(lang: AppLanguage) = if (lang == AppLanguage.BN) "অনির্ধারিত" else "Unmarked"
+    fun attendanceVisualChart(lang: AppLanguage) = if (lang == AppLanguage.BN) "উপস্থিতি ভিজ্যুয়াল অ্যানালিটিক্স" else "Attendance Visual Analytics"
+    fun attendanceChartSubtitle(lang: AppLanguage) = if (lang == AppLanguage.BN) "ট্রেন্ড গ্রাফ, ক্যালেন্ডার হিটম্যাপ ও শিক্ষার্থী র‍্যাঙ্কিং" else "Trend Graph, Calendar Heatmap & Student Ranking"
+    fun attendanceHistoryLog(lang: AppLanguage) = if (lang == AppLanguage.BN) "তারিখভিত্তিক উপস্থিতির ইতিহাস" else "Date-wise Attendance History"
+    fun last7Days(lang: AppLanguage) = if (lang == AppLanguage.BN) "গত ৭ দিন" else "Last 7 Days"
+    fun last14Days(lang: AppLanguage) = if (lang == AppLanguage.BN) "গত ১৪ দিন" else "Last 14 Days"
+    fun thisMonthTab(lang: AppLanguage) = if (lang == AppLanguage.BN) "চলতি মাস" else "This Month"
+    fun allRecordsRange(lang: AppLanguage) = if (lang == AppLanguage.BN) "সব রেকর্ড" else "All Records"
+    fun trendViewTab(lang: AppLanguage) = if (lang == AppLanguage.BN) "ট্রেন্ড বার" else "Trend Bar"
+    fun heatmapViewTab(lang: AppLanguage) = if (lang == AppLanguage.BN) "হিটম্যাপ" else "Heatmap"
+    fun studentRankingTab(lang: AppLanguage) = if (lang == AppLanguage.BN) "র‍্যাঙ্কিং" else "Rankings"
+    fun avgAttendanceRateLabel(lang: AppLanguage) = if (lang == AppLanguage.BN) "গড় উপস্থিতি" else "Avg Attendance"
+    fun totalClassesHeldLabel(lang: AppLanguage) = if (lang == AppLanguage.BN) "মোট হাজিরা দিন" else "Total Sessions"
+    fun presentRatioLabel(lang: AppLanguage) = if (lang == AppLanguage.BN) "উপস্থিত বনাম অনুপস্থিত" else "Present vs Absent"
+    fun inspectDayTitle(lang: AppLanguage) = if (lang == AppLanguage.BN) "নির্বাচিত দিনের বিস্তারিত" else "Selected Day Details"
+    fun loadAndEditDayButton(lang: AppLanguage) = if (lang == AppLanguage.BN) "এই দিনের হাজিরা এডিট করুন" else "Edit This Day's Attendance"
+    fun attendanceStatusExcellent(lang: AppLanguage) = if (lang == AppLanguage.BN) "চমৎকার (৮৫%+)" else "Excellent (85%+)"
+    fun attendanceStatusGood(lang: AppLanguage) = if (lang == AppLanguage.BN) "ভালো (৭০-৮৪%)" else "Good (70-84%)"
+    fun attendanceStatusAverage(lang: AppLanguage) = if (lang == AppLanguage.BN) "চলনসই (৫০-৬৯%)" else "Average (50-69%)"
+    fun attendanceStatusNeedsAttention(lang: AppLanguage) = if (lang == AppLanguage.BN) "মনোযোগ প্রয়োজন (<৫০%)" else "Needs Attention (<50%)"
+    fun regularStudentBadge(lang: AppLanguage) = if (lang == AppLanguage.BN) "নিয়মিত" else "Regular"
+    fun irregularStudentBadge(lang: AppLanguage) = if (lang == AppLanguage.BN) "অনিয়মিত" else "Irregular"
+    fun noAttendanceRecords(lang: AppLanguage) = if (lang == AppLanguage.BN) "এখনও কোনো উপস্থিতি রেকর্ড করা হয়নি।" else "No attendance records recorded yet."
+    fun attendanceTabLabel(lang: AppLanguage) = if (lang == AppLanguage.BN) "উপস্থিতি" else "Attendance"
+    fun totalPresentDays(lang: AppLanguage, count: String) = if (lang == AppLanguage.BN) "উপস্থিত: $count দিন" else "Present: $count days"
+    fun totalAbsentDays(lang: AppLanguage, count: String) = if (lang == AppLanguage.BN) "অনুপস্থিত: $count দিন" else "Absent: $count days"
+    fun attendanceRateLabel(lang: AppLanguage, rate: String) = if (lang == AppLanguage.BN) "উপস্থিতির হার: $rate%" else "Attendance Rate: $rate%"
+    fun markAttendanceForToday(lang: AppLanguage) = if (lang == AppLanguage.BN) "আজকের উপস্থিতি দিন:" else "Mark Today's Attendance:"
     fun totalOutstandingDue(lang: AppLanguage) = if (lang == AppLanguage.BN) "মোট বকেয়া টাকা" else "Total Outstanding Due"
     fun studentsWithDue(lang: AppLanguage) = if (lang == AppLanguage.BN) "বকেয়া শিক্ষার্থী" else "Students with Due"
     fun fullyPaidStudents(lang: AppLanguage) = if (lang == AppLanguage.BN) "পরিশোধিত শিক্ষার্থী" else "Fully Paid Students"
@@ -109,6 +157,41 @@ object Strings {
     fun submitPayment(lang: AppLanguage) = if (lang == AppLanguage.BN) "পেমেন্ট জমা দিন" else "Submit Payment"
     fun studentNotFound(lang: AppLanguage) = if (lang == AppLanguage.BN) "শিক্ষার্থী পাওয়া যায়নি" else "Student Not Found"
     fun back(lang: AppLanguage) = if (lang == AppLanguage.BN) "পিছনে যান" else "Back"
+
+    // Edit Period Dialog
+    fun editPeriodDialogTitle(lang: AppLanguage, periodNum: String) =
+        if (lang == AppLanguage.BN) "পিরিয়ড $periodNum এর তথ্য ও পেমেন্ট এডিট" else "Edit Period $periodNum Details & Payment"
+    fun studyDatesSection(lang: AppLanguage) =
+        if (lang == AppLanguage.BN) "পড়ার সময়কাল (তারিখ)" else "Study Period Dates"
+    fun studyStartDateLabel(lang: AppLanguage) =
+        if (lang == AppLanguage.BN) "পড়ার শুরুর তারিখ" else "Study Start Date"
+    fun studyEndDateLabel(lang: AppLanguage) =
+        if (lang == AppLanguage.BN) "পড়ার শেষের তারিখ" else "Study End Date"
+    fun subsequentCycleNotice(lang: AppLanguage) =
+        if (lang == AppLanguage.BN) "💡 এই পিরিয়ডের শুরুর তারিখ পরিবর্তন করলে এই পিরিয়ড এবং এর পরবর্তী সকল পিরিয়ডের পড়ার মাসও সেই অনুযায়ী শুরু হবে।"
+        else "💡 Changing this period's start date will shift the study cycle for this and all subsequent periods accordingly."
+    fun paymentDetailsSection(lang: AppLanguage) =
+        if (lang == AppLanguage.BN) "পেমেন্টের হিসাব ও এডিট" else "Payment Details & Edits"
+    fun paymentAmountLabel(lang: AppLanguage) =
+        if (lang == AppLanguage.BN) "কত টাকা পেমেন্ট করেছে" else "Amount Paid"
+    fun paymentDateLabel(lang: AppLanguage) =
+        if (lang == AppLanguage.BN) "কত তারিখে পেমেন্ট করেছে" else "Payment Date"
+    fun paymentNotesLabel(lang: AppLanguage) =
+        if (lang == AppLanguage.BN) "পদ্ধতি / নোট (ঐচ্ছিক)" else "Method / Note (Optional)"
+    fun addNewPaymentBtn(lang: AppLanguage) =
+        if (lang == AppLanguage.BN) "➕ এই পিরিয়ডে নতুন পেমেন্ট যোগ করুন" else "➕ Add New Payment for This Period"
+    fun savePeriodChanges(lang: AppLanguage) =
+        if (lang == AppLanguage.BN) "পরিবর্তন সংরক্ষণ করুন" else "Save Changes"
+    fun tapToEditPeriodHint(lang: AppLanguage) =
+        if (lang == AppLanguage.BN) "ট্যাপ করে তারিখ ও পেমেন্ট এডিট করুন" else "Tap to edit dates & payments"
+    fun paymentEntryTitle(lang: AppLanguage, index: String) =
+        if (lang == AppLanguage.BN) "পেমেন্ট #$index" else "Payment #$index"
+    fun noPaymentsForThisPeriod(lang: AppLanguage) =
+        if (lang == AppLanguage.BN) "এই পিরিয়ডের কোনো পেমেন্ট রেকর্ড নেই।" else "No payment records found for this period."
+    fun deletePaymentAction(lang: AppLanguage) =
+        if (lang == AppLanguage.BN) "পেমেন্ট মুছুন" else "Delete Payment"
+    fun editPeriodAction(lang: AppLanguage) =
+        if (lang == AppLanguage.BN) "এডিট করুন" else "Edit Period"
 
     // Payments Screen
     fun collectedThisMonth(lang: AppLanguage) = if (lang == AppLanguage.BN) "চলতি মাসে আদায়" else "This Month's Collection"
@@ -419,4 +502,30 @@ object Strings {
         else "Showing isolated data exclusively for year $yearStr"
     fun yearlyTotalCollectedBadge(lang: AppLanguage, yearStr: String) =
         if (lang == AppLanguage.BN) "$yearStr সালের মোট আদায়" else "Total Collected in $yearStr"
+
+    // Academic Year isolation strings
+    fun academicYearLabel(lang: AppLanguage) = if (lang == AppLanguage.BN) "শিক্ষাবর্ষ / হিসাব বর্ষ" else "Academic / Accounting Year"
+    fun studentListForYear(lang: AppLanguage, yearStr: String) =
+        if (lang == AppLanguage.BN) "$yearStr শিক্ষাবর্ষের শিক্ষার্থী তালিকা" else "Student List for $yearStr"
+    fun noStudentsInYear(lang: AppLanguage, yearStr: String) =
+        if (lang == AppLanguage.BN) "$yearStr শিক্ষাবর্ষে এখনও কোনো শিক্ষার্থী যোগ করা হয়নি।"
+        else "No students enrolled in academic year $yearStr yet."
+    fun addStudentForYear(lang: AppLanguage, yearStr: String) =
+        if (lang == AppLanguage.BN) "$yearStr সালের নতুন শিক্ষার্থী যোগ করুন" else "Add Student for $yearStr"
+    fun copyStudentsFromPrevYear(lang: AppLanguage, prevYearStr: String) =
+        if (lang == AppLanguage.BN) "$prevYearStr সাল থেকে শিক্ষার্থী কপি করুন" else "Import Students from $prevYearStr"
+    fun copyStudentsDialogTitle(lang: AppLanguage) =
+        if (lang == AppLanguage.BN) "পূর্ববর্তী বছরের শিক্ষার্থী আমদানি" else "Import Students from Previous Year"
+    fun copyStudentsDialogMsg(lang: AppLanguage, prevYearStr: String, currYearStr: String) =
+        if (lang == AppLanguage.BN) "আপনি কি $prevYearStr সালের সকল শিক্ষার্থীকে $currYearStr শিক্ষাবর্ষে নতুন করে তালিকাভুক্ত করতে চান? তাদের $currYearStr সালের হিসাব সম্পূর্ণ আলাদাভাবে শুরু হবে এবং $prevYearStr সালের পূর্ববর্তী তথ্য সংরক্ষিত থাকবে।"
+        else "Do you want to enroll all students from $prevYearStr into academic year $currYearStr? Their accounts for $currYearStr will start completely fresh and $prevYearStr data will remain intact."
+    fun confirmCopy(lang: AppLanguage) = if (lang == AppLanguage.BN) "শিক্ষার্থী আনুন" else "Import Students"
+    fun copySuccessMsg(lang: AppLanguage, countStr: String, yearStr: String) =
+        if (lang == AppLanguage.BN) "$countStr জন শিক্ষার্থী $yearStr শিক্ষাবর্ষে সফলভাবে যুক্ত হয়েছে!"
+        else "$countStr student(s) successfully enrolled in $yearStr!"
+    fun activeAcademicYearBadge(lang: AppLanguage, yearStr: String) =
+        if (lang == AppLanguage.BN) "শিক্ষাবর্ষ: $yearStr" else "Academic Year: $yearStr"
+    fun switchYear(lang: AppLanguage) = if (lang == AppLanguage.BN) "বছর পরিবর্তন" else "Switch Year"
+    fun selectYearToEnroll(lang: AppLanguage) =
+        if (lang == AppLanguage.BN) "কোন শিক্ষাবর্ষে ভর্তি করছেন?" else "Enroll in which Academic Year?"
 }

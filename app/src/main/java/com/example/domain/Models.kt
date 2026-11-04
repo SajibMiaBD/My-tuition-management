@@ -91,6 +91,7 @@ data class DashboardStats(
     val totalStudents: Int = 0,
     val monthlyExpectedIncome: Double = 0.0,
     val paymentsReceivedThisMonth: Double = 0.0,
+    val paymentsReceivedInYear: Double = 0.0,
     val totalOutstandingDue: Double = 0.0,
     val studentsWithDueCount: Int = 0,
     val fullyPaidStudentsCount: Int = 0

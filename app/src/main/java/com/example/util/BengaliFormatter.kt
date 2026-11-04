@@ -126,4 +126,62 @@ object BengaliFormatter {
         val separator = if (lang == AppLanguage.BN) "থেকে" else "to"
         return "$startStr $separator $endStr"
     }
+
+    /**
+     * Short day of week: সোম, মঙ্গল, বুধ, বৃহঃ, শুক্র, শনি, রবি / Mon, Tue, Wed, Thu, Fri, Sat, Sun
+     */
+    fun formatShortDayOfWeek(date: LocalDate, lang: AppLanguage = AppLanguage.BN): String {
+        return if (lang == AppLanguage.BN) {
+            when (date.dayOfWeek.value) {
+                1 -> "সোম"
+                2 -> "মঙ্গল"
+                3 -> "বুধ"
+                4 -> "বৃহঃ"
+                5 -> "শুক্র"
+                6 -> "শনি"
+                7 -> "রবি"
+                else -> ""
+            }
+        } else {
+            when (date.dayOfWeek.value) {
+                1 -> "Mon"
+                2 -> "Tue"
+                3 -> "Wed"
+                4 -> "Thu"
+                5 -> "Fri"
+                6 -> "Sat"
+                7 -> "Sun"
+                else -> ""
+            }
+        }
+    }
+
+    /**
+     * Full day of week: সোমবার, মঙ্গলবার ... / Monday, Tuesday ...
+     */
+    fun formatFullDayOfWeek(date: LocalDate, lang: AppLanguage = AppLanguage.BN): String {
+        return if (lang == AppLanguage.BN) {
+            when (date.dayOfWeek.value) {
+                1 -> "সোমবার"
+                2 -> "মঙ্গলবার"
+                3 -> "বুধবার"
+                4 -> "বৃহস্পতিবার"
+                5 -> "শুক্রবার"
+                6 -> "শনিবার"
+                7 -> "রবিবার"
+                else -> ""
+            }
+        } else {
+            when (date.dayOfWeek.value) {
+                1 -> "Monday"
+                2 -> "Tuesday"
+                3 -> "Wednesday"
+                4 -> "Thursday"
+                5 -> "Friday"
+                6 -> "Saturday"
+                7 -> "Sunday"
+                else -> ""
+            }
+        }
+    }
 }

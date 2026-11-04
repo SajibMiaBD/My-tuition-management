@@ -126,5 +126,120 @@ class ExampleUnitTest {
     assertEquals(2500.0, collections[1].amount, 0.001)
     assertEquals(0.0, collections[2].amount, 0.001)
   }
+
+  @Test
+  fun testAcademicYearIsolation() {
+    val student2025 = StudentEntity(id = 1L, name = "2025 Student", startDate = "2025-01-15", monthlyFee = 1000.0, academicYear = 2025)
+    val student2026 = StudentEntity(id = 2L, name = "2026 Student", startDate = "2026-01-15", monthlyFee = 1500.0, academicYear = 2026)
+
+    val payments = listOf(
+      PaymentEntity(id = 1L, studentId = 1L, periodIndex = 0, periodStartDate = "2025-01-15", periodEndDate = "2025-02-14", amount = 1000.0, paymentDate = "2025-01-20"),
+      PaymentEntity(id = 2L, studentId = 2L, periodIndex = 0, periodStartDate = "2026-01-15", periodEndDate = "2026-02-14", amount = 1500.0, paymentDate = "2026-01-20")
+    )
+
+    // Compute 2025 summary
+    val summary2025 = BillingEngine.computeStudentSummary(student2025, listOf(payments[0]), LocalDate.of(2026, 3, 1), selectedYear = 2025)
+    assertTrue(summary2025.periods.all { it.startDate.year == 2025 })
+
+    // Compute dashboard stats for 2026 with only 2026 students
+    val summary2026 = BillingEngine.computeStudentSummary(student2026, listOf(payments[1]), LocalDate.of(2026, 3, 1), selectedYear = 2026)
+    val stats2026 = BillingEngine.computeDashboardStats(listOf(summary2026), payments, LocalDate.of(2026, 3, 1), selectedYear = 2026)
+
+    assertEquals(1, stats2026.totalStudents)
+    assertEquals(1500.0, stats2026.monthlyExpectedIncome, 0.001)
+    assertEquals(1500.0, stats2026.paymentsReceivedInYear, 0.001)
+    // On 2026-03-01, payments strictly in March are 0.0
+    assertEquals(0.0, stats2026.paymentsReceivedThisMonth, 0.001)
+
+    // When a payment is made in March (this month):
+    val marchPayment = PaymentEntity(id = 3L, studentId = 2L, periodIndex = 1, periodStartDate = "2026-02-15", periodEndDate = "2026-03-14", amount = 1500.0, paymentDate = "2026-03-05")
+    val statsWithMarch = BillingEngine.computeDashboardStats(listOf(summary2026), payments + marchPayment, LocalDate.of(2026, 3, 1), selectedYear = 2026)
+    assertEquals(1500.0, statsWithMarch.paymentsReceivedThisMonth, 0.001)
+    assertEquals(3000.0, statsWithMarch.paymentsReceivedInYear, 0.001)
+  }
+
+  @Test
+  fun testCustomPeriodShiftAndSubsequentPeriods() {
+    // Initial start date 2026-01-10. Normal periods:
+    // Period 0: 2026-01-10 to 2026-02-09
+    // Period 1: 2026-02-10 to 2026-03-09
+    // Period 2: 2026-03-10 to 2026-04-09
+    // Teacher overrides Period 1 start date to 2026-02-20:
+    val customStartsMap = mapOf(1 to "2026-02-20")
+    val student = StudentEntity(
+      id = 10L,
+      name = "তানভীর",
+      startDate = "2026-01-10",
+      monthlyFee = 1200.0,
+      customPeriodStartsJson = BillingEngine.formatCustomPeriodStarts(customStartsMap)
+    )
+
+    val today = LocalDate.of(2026, 4, 15)
+    val summary = BillingEngine.computeStudentSummary(student, emptyList(), today)
+
+    // Period 0: Jan 10 - Feb 09
+    assertEquals(LocalDate.of(2026, 1, 10), summary.periods[0].startDate)
+    assertEquals(LocalDate.of(2026, 2, 9), summary.periods[0].endDate)
+
+    // Period 1: Feb 20 - Mar 19 (custom date applied)
+    assertEquals(LocalDate.of(2026, 2, 20), summary.periods[1].startDate)
+    assertEquals(LocalDate.of(2026, 3, 19), summary.periods[1].endDate)
+
+    // Subsequent Period 2: Mar 20 - Apr 19 (dynamically shifts from Period 1's new cycle!)
+    assertEquals(LocalDate.of(2026, 3, 20), summary.periods[2].startDate)
+    assertEquals(LocalDate.of(2026, 4, 19), summary.periods[2].endDate)
+  }
+
+  @Test
+  fun testInputDeduplicatorDoubleTyping() {
+    val deduplicator = com.example.ui.components.InputDeduplicator()
+
+    // 1. Single-event double typing (e.g. emulator injects "aa" instead of "a")
+    val res1 = deduplicator.filter("", "aa")
+    assertEquals("a", res1)
+
+    // 2. Typing next letter: "a" -> "ab"
+    val res2 = deduplicator.filter(res1, "ab")
+    assertEquals("ab", res2)
+
+    // 3. Rapid duplicate event (< 80ms) of the same character: "ab" -> "abb" immediately
+    val res3 = deduplicator.filter(res2, "abb")
+    assertEquals("ab", res3) // rapid duplicate suppressed
+
+    // 4. Backspace
+    val res4 = deduplicator.filter(res3, "a")
+    assertEquals("a", res4)
+
+    // 5. Bengali numerals / characters: "" -> "১১" in single event
+    val res5 = deduplicator.filter("", "১১")
+    assertEquals("১", res5)
+  }
+
+  @Test
+  fun testAttendanceSummaryCalculation() {
+    val records = listOf(
+      com.example.data.AttendanceEntity(studentId = 1L, date = "2026-11-01", isPresent = true),
+      com.example.data.AttendanceEntity(studentId = 2L, date = "2026-11-01", isPresent = false),
+      com.example.data.AttendanceEntity(studentId = 1L, date = "2026-11-02", isPresent = true),
+      com.example.data.AttendanceEntity(studentId = 2L, date = "2026-11-02", isPresent = true)
+    )
+
+    // Student 1: 2 present out of 2 days
+    val s1Attendance = records.filter { it.studentId == 1L }
+    val s1Present = s1Attendance.count { it.isPresent }
+    assertEquals(2, s1Present)
+
+    // Student 2: 1 present, 1 absent
+    val s2Attendance = records.filter { it.studentId == 2L }
+    val s2Present = s2Attendance.count { it.isPresent }
+    val s2Absent = s2Attendance.count { !it.isPresent }
+    assertEquals(1, s2Present)
+    assertEquals(1, s2Absent)
+
+    // Date 2026-11-01: 1 present out of 2 students
+    val day1 = records.filter { it.date == "2026-11-01" }
+    assertEquals(1, day1.count { it.isPresent })
+    assertEquals(1, day1.count { !it.isPresent })
+  }
 }
 

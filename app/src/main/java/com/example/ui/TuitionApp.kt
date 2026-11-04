@@ -55,9 +55,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.ui.components.AddEditStudentDialog
 import com.example.ui.components.RecordPaymentDialog
+import com.example.ui.screens.AttendanceScreen
 import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.DuesScreen
 import com.example.ui.screens.PaymentsScreen
@@ -103,8 +106,12 @@ fun TuitionApp(
     val paymentSuccessReceipt by viewModel.paymentSuccessReceipt.collectAsState()
     val pendingBackupData by viewModel.pendingBackupData.collectAsState()
     val backupStatusMessage by viewModel.backupStatusMessage.collectAsState()
+    val copyStatusMessage by viewModel.copyStatusMessage.collectAsState()
     val selectedYear by viewModel.selectedYear.collectAsState()
     val availableYears by viewModel.availableYears.collectAsState()
+    val allAttendance by viewModel.allAttendance.collectAsState()
+    val todayAttendanceSummary by viewModel.todayAttendanceSummary.collectAsState()
+    val currentYearStudents by viewModel.currentYearStudents.collectAsState()
 
     val navItems = listOf(
         NavItem(Strings.navDashboard(currentLanguage), Icons.Filled.Dashboard, Icons.Outlined.Dashboard, Screen.Dashboard, "nav_dashboard"),
@@ -123,7 +130,7 @@ fun TuitionApp(
 
     Scaffold(
         bottomBar = {
-            if (currentScreen !is Screen.StudentDetails) {
+            if (currentScreen !is Screen.StudentDetails && currentScreen !is Screen.Attendance) {
                 NavigationBar(
                     containerColor = MaterialTheme.colorScheme.surface,
                     tonalElevation = 8.dp
@@ -157,11 +164,19 @@ fun TuitionApp(
                                     )
                                 }
                             },
+                            alwaysShowLabel = true,
                             label = {
                                 Text(
                                     text = item.title,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    style = MaterialTheme.typography.labelSmall
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontSize = 9.sp,
+                                        lineHeight = 10.sp,
+                                        letterSpacing = (-0.3).sp
+                                    ),
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             },
                             colors = NavigationBarItemDefaults.colors(
@@ -194,6 +209,7 @@ fun TuitionApp(
                             monthlyCollections = monthlyCollections,
                             studentSummaries = studentSummaries,
                             recentPayments = paymentsWithStudents,
+                            todayAttendanceSummary = todayAttendanceSummary,
                             selectedYear = selectedYear,
                             availableYears = availableYears,
                             currentLanguage = currentLanguage,
@@ -203,6 +219,7 @@ fun TuitionApp(
                             onViewStudentsClick = { viewModel.navigateTo(Screen.Students) },
                             onViewDuesClick = { viewModel.navigateTo(Screen.Dues) },
                             onViewPaymentsClick = { viewModel.navigateTo(Screen.Payments) },
+                            onAttendanceClick = { viewModel.navigateTo(Screen.Attendance) },
                             onStudentClick = { id -> viewModel.navigateTo(Screen.StudentDetails(id)) }
                         )
                     }
@@ -213,9 +230,13 @@ fun TuitionApp(
                             allStudentSummaries = studentSummaries,
                             searchQuery = searchQuery,
                             selectedFilter = selectedFilter,
+                            selectedYear = selectedYear,
+                            availableYears = availableYears,
                             currentLanguage = currentLanguage,
                             onSearchQueryChange = { viewModel.setSearchQuery(it) },
                             onFilterChange = { viewModel.setStudentFilter(it) },
+                            onYearSelected = { viewModel.setSelectedYear(it) },
+                            onCopyStudentsFromYear = { viewModel.copyStudentsFromYear(it) },
                             onStudentClick = { id -> viewModel.navigateTo(Screen.StudentDetails(id)) },
                             onAddStudentClick = { viewModel.openAddStudentDialog() },
                             onEditStudentClick = { student -> viewModel.openEditStudentDialog(student) },
@@ -228,6 +249,7 @@ fun TuitionApp(
                         val summary = studentSummaries.find { it.student.id == targetScreen.studentId }
                         StudentDetailsScreen(
                             summary = summary,
+                            attendanceList = allAttendance,
                             currentLanguage = currentLanguage,
                             onBackClick = { viewModel.navigateBack() },
                             onEditStudentClick = { student -> viewModel.openEditStudentDialog(student) },
@@ -241,13 +263,39 @@ fun TuitionApp(
                             },
                             onResumeBillClick = { studentId, resumeDate ->
                                 viewModel.resumeStudentBilling(studentId, resumeDate)
+                            },
+                            onToggleAttendance = { studentId, date, isPresent ->
+                                viewModel.recordAttendance(studentId, date, isPresent)
+                            },
+                            onSavePeriodDetails = { studentId, periodIndex, newStartDate, modifiedPayments, newPayment, deletedIds ->
+                                viewModel.updatePeriodDetails(studentId, periodIndex, newStartDate, modifiedPayments, newPayment, deletedIds)
                             }
+                        )
+                    }
+
+                    is Screen.Attendance -> {
+                        AttendanceScreen(
+                            students = currentYearStudents,
+                            allAttendance = allAttendance,
+                            selectedYear = selectedYear,
+                            currentLanguage = currentLanguage,
+                            onRecordAttendance = { studentId, date, isPresent ->
+                                viewModel.recordAttendance(studentId, date, isPresent)
+                            },
+                            onMarkAllAttendance = { date, isPresent ->
+                                viewModel.markAllAttendanceForDate(date, isPresent)
+                            },
+                            onStudentClick = { id ->
+                                viewModel.navigateTo(Screen.StudentDetails(id))
+                            },
+                            onBackClick = { viewModel.navigateBack() }
                         )
                     }
 
                     is Screen.Payments -> {
                         PaymentsScreen(
                             payments = paymentsWithStudents,
+                            selectedYear = selectedYear,
                             currentLanguage = currentLanguage,
                             onAddPaymentClick = { viewModel.openRecordPaymentDialog() },
                             onDeletePaymentClick = { payment -> viewModel.confirmDeletePayment(payment) },
@@ -294,9 +342,10 @@ fun TuitionApp(
         AddEditStudentDialog(
             studentToEdit = studentToEdit,
             currentLanguage = currentLanguage,
+            initialAcademicYear = selectedYear,
             onDismiss = { viewModel.closeAddEditStudentDialog() },
-            onSave = { name, phone, startDate, monthlyFee, notes, id ->
-                viewModel.saveStudent(name, phone, startDate, monthlyFee, notes, id)
+            onSave = { name, phone, startDate, monthlyFee, notes, academicYear, id ->
+                viewModel.saveStudent(name, phone, startDate, monthlyFee, notes, academicYear, id)
             }
         )
     }
@@ -507,6 +556,34 @@ fun TuitionApp(
                 }
             },
             shape = RoundedCornerShape(20.dp)
+        )
+    }
+
+    if (copyStatusMessage != null) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissCopyStatus() },
+            title = {
+                Text(
+                    text = if (currentLanguage == com.example.util.AppLanguage.BN) "শিক্ষার্থী কপি সম্পন্ন" else "Students Imported",
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium
+                )
+            },
+            text = {
+                Text(
+                    text = copyStatusMessage ?: "",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = { viewModel.dismissCopyStatus() },
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text(Strings.ok(currentLanguage), fontWeight = FontWeight.Bold)
+                }
+            },
+            shape = RoundedCornerShape(18.dp)
         )
     }
 }

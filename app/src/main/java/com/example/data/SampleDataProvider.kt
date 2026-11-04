@@ -15,7 +15,8 @@ object SampleDataProvider {
                 phone = "01712345678",
                 startDate = s1Start,
                 monthlyFee = 1500.0,
-                notes = "১০ম শ্রেণি, পদার্থ ও গণিত"
+                notes = "১০ম শ্রেণি, পদার্থ ও গণিত",
+                academicYear = today.year
             )
         )
         // Payments for Rahim for completed periods
@@ -61,7 +62,8 @@ object SampleDataProvider {
                 phone = "01898765432",
                 startDate = s2Start,
                 monthlyFee = 1200.0,
-                notes = "৮ম শ্রেণি, ইংরেজি ও বিজ্ঞান"
+                notes = "৮ম শ্রেণি, ইংরেজি ও বিজ্ঞান",
+                academicYear = today.year
             )
         )
         // Only paid period 0, period 1 ended and is DUE
@@ -85,7 +87,8 @@ object SampleDataProvider {
                 phone = "01911223344",
                 startDate = s3Start,
                 monthlyFee = 2000.0,
-                notes = "দ্বাদশ শ্রেণি, উচ্চতর গণিত"
+                notes = "দ্বাদশ শ্রেণি, উচ্চতর গণিত",
+                academicYear = today.year
             )
         )
         repository.insertPayment(
@@ -120,7 +123,8 @@ object SampleDataProvider {
                 phone = "01655443322",
                 startDate = s4Start,
                 monthlyFee = 1000.0,
-                notes = "৭ম শ্রেণি, সাধারণ গণিত"
+                notes = "৭ম শ্রেণি, সাধারণ গণিত",
+                academicYear = today.year
             )
         )
 
@@ -132,7 +136,8 @@ object SampleDataProvider {
                 phone = "01788776655",
                 startDate = s5Start,
                 monthlyFee = 1800.0,
-                notes = "৯ম শ্রেণি, রসায়ন ও পদার্থ"
+                notes = "৯ম শ্রেণি, রসায়ন ও পদার্থ",
+                academicYear = today.year
             )
         )
         repository.insertPayment(

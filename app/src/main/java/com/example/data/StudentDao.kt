@@ -16,6 +16,12 @@ interface StudentDao {
     @Query("SELECT * FROM students ORDER BY id ASC")
     suspend fun getAllStudentsList(): List<StudentEntity>
 
+    @Query("SELECT * FROM students WHERE academicYear = :year ORDER BY createdAt DESC")
+    fun getStudentsByYear(year: Int): Flow<List<StudentEntity>>
+
+    @Query("SELECT * FROM students WHERE academicYear = :year ORDER BY id ASC")
+    suspend fun getStudentsByYearList(year: Int): List<StudentEntity>
+
     @Query("SELECT * FROM students WHERE id = :id LIMIT 1")
     fun getStudentById(id: Long): Flow<StudentEntity?>
 

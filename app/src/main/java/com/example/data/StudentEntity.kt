@@ -16,5 +16,7 @@ data class StudentEntity(
     val isPaused: Boolean = false,
     val pausedDate: String? = null,
     val pauseHistoryJson: String = "[]",
-    val activeCycleStartDate: String? = null
+    val activeCycleStartDate: String? = null,
+    val academicYear: Int = 2026,
+    val customPeriodStartsJson: String = "{}"
 )

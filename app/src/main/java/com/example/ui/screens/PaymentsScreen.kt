@@ -60,6 +60,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.data.PaymentEntity
 import com.example.ui.PaymentWithStudent
+import com.example.ui.components.AppOutlinedTextField
 import com.example.ui.components.EmptyState
 import com.example.ui.components.StudentAvatar
 import com.example.ui.theme.StatusPaid
@@ -69,13 +70,14 @@ import com.example.util.Strings
 import java.time.LocalDate
 
 enum class PaymentViewMode {
-    THIS_MONTH,
-    ALL_YEARS
+    THIS_YEAR,
+    THIS_MONTH
 }
 
 @Composable
 fun PaymentsScreen(
     payments: List<PaymentWithStudent>,
+    selectedYear: Int = LocalDate.now().year,
     currentLanguage: AppLanguage = AppLanguage.BN,
     onAddPaymentClick: () -> Unit,
     onDeletePaymentClick: (PaymentEntity) -> Unit,
@@ -83,12 +85,15 @@ fun PaymentsScreen(
     modifier: Modifier = Modifier
 ) {
     var searchQuery by remember { mutableStateOf("") }
-    var activeViewMode by remember { mutableStateOf(PaymentViewMode.THIS_MONTH) }
+    var activeViewMode by remember { mutableStateOf(PaymentViewMode.THIS_YEAR) }
     var paymentToDelete by remember { mutableStateOf<PaymentEntity?>(null) }
 
     val today = remember { LocalDate.now() }
     val thisMonthPrefix = remember(today) {
         "${today.year}-${String.format(java.util.Locale.US, "%02d", today.monthValue)}"
+    }
+    val thisYearPrefix = remember(selectedYear) {
+        "$selectedYear-"
     }
 
     // Partition and sort payments chronologically (latest first with sequential order #1, #2...)
@@ -98,16 +103,18 @@ fun PaymentsScreen(
             .sortedWith(compareByDescending<PaymentWithStudent> { it.payment.paymentDate }.thenByDescending { it.payment.id })
     }
 
-    val allYearsPayments = remember(payments) {
-        payments.sortedWith(compareByDescending<PaymentWithStudent> { it.payment.paymentDate }.thenByDescending { it.payment.id })
+    val thisYearPayments = remember(payments, thisYearPrefix) {
+        payments
+            .filter { it.payment.paymentDate.startsWith(thisYearPrefix) }
+            .sortedWith(compareByDescending<PaymentWithStudent> { it.payment.paymentDate }.thenByDescending { it.payment.id })
     }
 
-    val totalCollected = remember(payments) { payments.sumOf { it.payment.amount } }
     val thisMonthCollected = remember(thisMonthPayments) { thisMonthPayments.sumOf { it.payment.amount } }
+    val thisYearCollected = remember(thisYearPayments) { thisYearPayments.sumOf { it.payment.amount } }
 
     val currentList = when (activeViewMode) {
         PaymentViewMode.THIS_MONTH -> thisMonthPayments
-        PaymentViewMode.ALL_YEARS -> allYearsPayments
+        PaymentViewMode.THIS_YEAR -> thisYearPayments
     }
 
     val filteredList = remember(currentList, searchQuery) {
@@ -141,37 +148,38 @@ fun PaymentsScreen(
                 .padding(innerPadding)
                 .testTag("payments_screen")
         ) {
-            // Interactive Summary Cards (Click to toggle active list view)
+            // Interactive Summary Cards (2026 Collection & This Month's Collection)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                val yrTitle = if (currentLanguage == AppLanguage.BN) "$selectedYear সালের আদায়" else "$selectedYear Collection"
                 InteractiveStatCard(
-                    title = Strings.collectedThisMonth(currentLanguage),
+                    title = yrTitle,
+                    value = BengaliFormatter.formatCurrency(thisYearCollected, currentLanguage),
+                    countText = "${BengaliFormatter.formatDigits(thisYearPayments.size, currentLanguage)} ${if (currentLanguage == AppLanguage.BN) "টি পেমেন্ট" else "payments"}",
+                    icon = Icons.Default.CalendarToday,
+                    iconTint = StatusPaid,
+                    isSelected = activeViewMode == PaymentViewMode.THIS_YEAR,
+                    onClick = { activeViewMode = PaymentViewMode.THIS_YEAR },
+                    modifier = Modifier.weight(1f)
+                )
+
+                InteractiveStatCard(
+                    title = if (currentLanguage == AppLanguage.BN) "চলতি মাসের আদায়" else "This Month's Collection",
                     value = BengaliFormatter.formatCurrency(thisMonthCollected, currentLanguage),
                     countText = "${BengaliFormatter.formatDigits(thisMonthPayments.size, currentLanguage)} ${if (currentLanguage == AppLanguage.BN) "টি পেমেন্ট" else "payments"}",
                     icon = Icons.Default.CalendarMonth,
-                    iconTint = StatusPaid,
+                    iconTint = MaterialTheme.colorScheme.primary,
                     isSelected = activeViewMode == PaymentViewMode.THIS_MONTH,
                     onClick = { activeViewMode = PaymentViewMode.THIS_MONTH },
                     modifier = Modifier.weight(1f)
                 )
-
-                InteractiveStatCard(
-                    title = Strings.totalCollected(currentLanguage),
-                    value = BengaliFormatter.formatCurrency(totalCollected, currentLanguage),
-                    countText = "${BengaliFormatter.formatDigits(allYearsPayments.size, currentLanguage)} ${if (currentLanguage == AppLanguage.BN) "টি সর্বমোট" else "total"}",
-                    icon = Icons.AutoMirrored.Filled.TrendingUp,
-                    iconTint = MaterialTheme.colorScheme.primary,
-                    isSelected = activeViewMode == PaymentViewMode.ALL_YEARS,
-                    onClick = { activeViewMode = PaymentViewMode.ALL_YEARS },
-                    modifier = Modifier.weight(1f)
-                )
             }
 
-            // Mode Selector Chips
+            // Mode Selector Chips (Strictly 2026 Collection and This months collection)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -179,19 +187,19 @@ fun PaymentsScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 FilterChip(
-                    selected = activeViewMode == PaymentViewMode.THIS_MONTH,
-                    onClick = { activeViewMode = PaymentViewMode.THIS_MONTH },
+                    selected = activeViewMode == PaymentViewMode.THIS_YEAR,
+                    onClick = { activeViewMode = PaymentViewMode.THIS_YEAR },
                     leadingIcon = {
                         Icon(
-                            imageVector = if (activeViewMode == PaymentViewMode.THIS_MONTH) Icons.Default.CheckCircle else Icons.Default.CalendarToday,
+                            imageVector = if (activeViewMode == PaymentViewMode.THIS_YEAR) Icons.Default.CheckCircle else Icons.Default.CalendarToday,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp)
                         )
                     },
                     label = {
                         Text(
-                            text = "${Strings.tabThisMonth(currentLanguage)} (${BengaliFormatter.formatDigits(thisMonthPayments.size, currentLanguage)})",
-                            fontWeight = if (activeViewMode == PaymentViewMode.THIS_MONTH) FontWeight.Bold else FontWeight.Normal
+                            text = if (currentLanguage == AppLanguage.BN) "$selectedYear সালের আদায় (${BengaliFormatter.formatDigits(thisYearPayments.size, currentLanguage)})" else "$selectedYear Collection (${thisYearPayments.size})",
+                            fontWeight = if (activeViewMode == PaymentViewMode.THIS_YEAR) FontWeight.Bold else FontWeight.Normal
                         )
                     },
                     shape = RoundedCornerShape(10.dp),
@@ -202,19 +210,19 @@ fun PaymentsScreen(
                 )
 
                 FilterChip(
-                    selected = activeViewMode == PaymentViewMode.ALL_YEARS,
-                    onClick = { activeViewMode = PaymentViewMode.ALL_YEARS },
+                    selected = activeViewMode == PaymentViewMode.THIS_MONTH,
+                    onClick = { activeViewMode = PaymentViewMode.THIS_MONTH },
                     leadingIcon = {
                         Icon(
-                            imageVector = if (activeViewMode == PaymentViewMode.ALL_YEARS) Icons.Default.CheckCircle else Icons.Default.FormatListNumbered,
+                            imageVector = if (activeViewMode == PaymentViewMode.THIS_MONTH) Icons.Default.CheckCircle else Icons.Default.CalendarMonth,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp)
                         )
                     },
                     label = {
                         Text(
-                            text = "${Strings.tabAllYears(currentLanguage)} (${BengaliFormatter.formatDigits(allYearsPayments.size, currentLanguage)})",
-                            fontWeight = if (activeViewMode == PaymentViewMode.ALL_YEARS) FontWeight.Bold else FontWeight.Normal
+                            text = if (currentLanguage == AppLanguage.BN) "চলতি মাসের আদায় (${BengaliFormatter.formatDigits(thisMonthPayments.size, currentLanguage)})" else "This Month's Collection (${thisMonthPayments.size})",
+                            fontWeight = if (activeViewMode == PaymentViewMode.THIS_MONTH) FontWeight.Bold else FontWeight.Normal
                         )
                     },
                     shape = RoundedCornerShape(10.dp),
@@ -231,7 +239,7 @@ fun PaymentsScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 6.dp)
             ) {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
                     placeholder = { Text(Strings.searchPaymentPlaceholder(currentLanguage)) },

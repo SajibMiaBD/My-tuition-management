@@ -69,8 +69,9 @@ import java.time.LocalDate
 fun AddEditStudentDialog(
     studentToEdit: StudentEntity? = null,
     currentLanguage: AppLanguage = AppLanguage.BN,
+    initialAcademicYear: Int = LocalDate.now().year,
     onDismiss: () -> Unit,
-    onSave: (name: String, phone: String, startDate: String, monthlyFee: Double, notes: String, id: Long) -> Unit
+    onSave: (name: String, phone: String, startDate: String, monthlyFee: Double, notes: String, academicYear: Int, id: Long) -> Unit
 ) {
     val isEditMode = studentToEdit != null
 
@@ -83,15 +84,37 @@ fun AddEditStudentDialog(
     }
     var notes by remember(studentToEdit) { mutableStateOf(studentToEdit?.notes ?: "") }
 
-    var selectedDate by remember(studentToEdit) {
+    var academicYear by remember(studentToEdit, initialAcademicYear) {
+        val yr = if (studentToEdit != null) {
+            if (studentToEdit.academicYear > 0) studentToEdit.academicYear else try {
+                LocalDate.parse(studentToEdit.startDate).year
+            } catch (_: Exception) {
+                initialAcademicYear
+            }
+        } else {
+            initialAcademicYear
+        }
+        mutableIntStateOf(yr)
+    }
+
+    var selectedDate by remember(studentToEdit, initialAcademicYear) {
         val initialDate = if (studentToEdit != null) {
             try {
                 LocalDate.parse(studentToEdit.startDate)
             } catch (_: Exception) {
-                LocalDate.now()
+                LocalDate.of(initialAcademicYear, 1, 1)
             }
         } else {
-            LocalDate.now()
+            val now = LocalDate.now()
+            if (initialAcademicYear == now.year) {
+                now
+            } else {
+                try {
+                    LocalDate.of(initialAcademicYear, now.monthValue, now.dayOfMonth.coerceAtMost(28))
+                } catch (_: Exception) {
+                    LocalDate.of(initialAcademicYear, 1, 1)
+                }
+            }
         }
         mutableStateOf(initialDate)
     }
@@ -115,8 +138,45 @@ fun AddEditStudentDialog(
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
             ) {
+                // Academic Year Badge Card
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.CalendarToday,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = Strings.academicYearLabel(currentLanguage),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                        Text(
+                            text = BengaliFormatter.formatDigits(academicYear, currentLanguage),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+
                 // Name Field
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = name,
                     onValueChange = {
                         name = it
@@ -138,7 +198,7 @@ fun AddEditStudentDialog(
                 Spacer(modifier = Modifier.height(10.dp))
 
                 // Phone Field
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = phone,
                     onValueChange = { phone = it },
                     label = { Text(Strings.phoneOptional(currentLanguage)) },
@@ -223,7 +283,7 @@ fun AddEditStudentDialog(
                 Spacer(modifier = Modifier.height(14.dp))
 
                 // Monthly Tuition Fee
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = monthlyFeeStr,
                     onValueChange = {
                         monthlyFeeStr = it
@@ -280,7 +340,7 @@ fun AddEditStudentDialog(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 // Notes Field
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = notes,
                     onValueChange = { notes = it },
                     label = { Text(Strings.notesOptional(currentLanguage)) },
@@ -312,6 +372,7 @@ fun AddEditStudentDialog(
                             selectedDate.toString(),
                             fee,
                             notes.trim(),
+                            academicYear,
                             studentToEdit?.id ?: 0L
                         )
                     }

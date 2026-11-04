@@ -56,8 +56,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.background
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -75,6 +77,13 @@ import com.example.util.BengaliFormatter
 import com.example.util.Strings
 import java.time.LocalDate
 
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.GroupAdd
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StudentsScreen(
@@ -82,9 +91,13 @@ fun StudentsScreen(
     allStudentSummaries: List<StudentBillingSummary> = emptyList(),
     searchQuery: String,
     selectedFilter: StudentFilter,
+    selectedYear: Int = LocalDate.now().year,
+    availableYears: List<Int> = listOf(2027, 2026, 2025, 2024),
     currentLanguage: AppLanguage = AppLanguage.BN,
     onSearchQueryChange: (String) -> Unit,
     onFilterChange: (StudentFilter) -> Unit,
+    onYearSelected: (Int) -> Unit = {},
+    onCopyStudentsFromYear: (Int) -> Unit = {},
     onStudentClick: (Long) -> Unit,
     onAddStudentClick: () -> Unit,
     onEditStudentClick: (StudentEntity) -> Unit,
@@ -93,6 +106,12 @@ fun StudentsScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    var showYearPickerDialog by remember { mutableStateOf(false) }
+    var showCopyConfirmDialog by remember { mutableStateOf(false) }
+
+    val yrDigits = BengaliFormatter.formatDigits(selectedYear, currentLanguage)
+    val prevYear = selectedYear - 1
+    val prevYearDigits = BengaliFormatter.formatDigits(prevYear, currentLanguage)
 
     val countSource = if (allStudentSummaries.isNotEmpty()) allStudentSummaries else students
     val allCount = countSource.size
@@ -119,13 +138,92 @@ fun StudentsScreen(
                 .padding(innerPadding)
                 .testTag("students_screen")
         ) {
+            // Academic Year Banner Card
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                    .testTag("students_academic_year_card"),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.18f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CalendarToday,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = Strings.studentListForYear(currentLanguage, yrDigits),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                            val unitStr = if (currentLanguage == AppLanguage.BN) "জন শিক্ষার্থী" else "students"
+                            Text(
+                                text = "${Strings.totalStudents(currentLanguage)}: ${BengaliFormatter.formatDigits(allCount, currentLanguage)} $unitStr",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f)
+                            )
+                        }
+                    }
+
+                    Surface(
+                        onClick = { showYearPickerDialog = true },
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.22f),
+                        modifier = Modifier.testTag("students_select_year_button")
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = yrDigits,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = "Switch Year",
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
+            }
             // Search Bar
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
-                OutlinedTextField(
+                com.example.ui.components.AppOutlinedTextField(
                     value = searchQuery,
                     onValueChange = onSearchQueryChange,
                     placeholder = { Text(Strings.searchStudentPlaceholder(currentLanguage)) },
@@ -219,13 +317,37 @@ fun StudentsScreen(
 
             // Students List
             if (students.isEmpty()) {
-                EmptyState(
-                    icon = Icons.Default.Person,
-                    title = if (searchQuery.isNotEmpty()) Strings.noStudentsFound(currentLanguage) else Strings.studentListEmpty(currentLanguage),
-                    subtitle = if (searchQuery.isNotEmpty()) Strings.tryOtherName(currentLanguage) else Strings.tapFabToAdd(currentLanguage),
-                    actionText = if (searchQuery.isEmpty()) Strings.addNewStudentTitle(currentLanguage) else null,
-                    onActionClick = if (searchQuery.isEmpty()) onAddStudentClick else null
-                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    EmptyState(
+                        icon = Icons.Default.Person,
+                        title = if (searchQuery.isNotEmpty()) Strings.noStudentsFound(currentLanguage) else Strings.noStudentsInYear(currentLanguage, yrDigits),
+                        subtitle = if (searchQuery.isNotEmpty()) Strings.tryOtherName(currentLanguage) else Strings.tapFabToAdd(currentLanguage),
+                        actionText = if (searchQuery.isEmpty()) Strings.addStudentForYear(currentLanguage, yrDigits) else null,
+                        onActionClick = if (searchQuery.isEmpty()) onAddStudentClick else null
+                    )
+
+                    if (searchQuery.isEmpty()) {
+                        Spacer(modifier = Modifier.height(14.dp))
+                        OutlinedButton(
+                            onClick = { showCopyConfirmDialog = true },
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.GroupAdd,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(Strings.copyStudentsFromPrevYear(currentLanguage, prevYearDigits))
+                        }
+                    }
+                }
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -253,6 +375,57 @@ fun StudentsScreen(
                 }
             }
         }
+    }
+
+    if (showYearPickerDialog) {
+        AccountingYearPickerDialog(
+            selectedYear = selectedYear,
+            currentLanguage = currentLanguage,
+            onDismiss = { showYearPickerDialog = false },
+            onYearSelected = { yr ->
+                onYearSelected(yr)
+                showYearPickerDialog = false
+            }
+        )
+    }
+
+    if (showCopyConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showCopyConfirmDialog = false },
+            title = {
+                Text(
+                    text = Strings.copyStudentsDialogTitle(currentLanguage),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = Strings.copyStudentsDialogMsg(currentLanguage, prevYearDigits, yrDigits),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onCopyStudentsFromYear(prevYear)
+                        showCopyConfirmDialog = false
+                    },
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text(Strings.confirmCopy(currentLanguage))
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { showCopyConfirmDialog = false },
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text(Strings.cancel(currentLanguage))
+                }
+            },
+            shape = RoundedCornerShape(18.dp)
+        )
     }
 }
 

@@ -57,7 +57,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.data.AttendanceEntity
 import com.example.data.PaymentEntity
 import com.example.data.StudentEntity
 import com.example.domain.BillingPeriod
@@ -78,17 +81,23 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FactCheck
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.OutlinedTextField
+import com.example.ui.components.AppOutlinedTextField
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.graphics.Color
+import com.example.ui.components.EditPeriodDialog
 import java.time.temporal.ChronoUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StudentDetailsScreen(
     summary: StudentBillingSummary?,
+    attendanceList: List<AttendanceEntity> = emptyList(),
     currentLanguage: AppLanguage = AppLanguage.BN,
     onBackClick: () -> Unit,
     onEditStudentClick: (StudentEntity) -> Unit,
@@ -97,6 +106,8 @@ fun StudentDetailsScreen(
     onDeletePaymentClick: (PaymentEntity) -> Unit,
     onPauseBillClick: (Long, String) -> Unit = { _, _ -> },
     onResumeBillClick: (Long, String) -> Unit = { _, _ -> },
+    onToggleAttendance: (studentId: Long, date: String, isPresent: Boolean) -> Unit = { _, _, _ -> },
+    onSavePeriodDetails: (studentId: Long, periodIndex: Int, newStartDate: String, modifiedPayments: List<PaymentEntity>, newPayment: PaymentEntity?, deletedPaymentIds: List<Long>) -> Unit = { _, _, _, _, _, _ -> },
     modifier: Modifier = Modifier
 ) {
     BackHandler {
@@ -109,6 +120,7 @@ fun StudentDetailsScreen(
     var showPauseHistoryDialog by remember { mutableStateOf(false) }
     var pauseDateInput by remember { mutableStateOf(LocalDate.now().toString()) }
     var resumeDateInput by remember { mutableStateOf(LocalDate.now().toString()) }
+    var periodToEdit by remember { mutableStateOf<BillingPeriod?>(null) }
 
     if (summary == null) {
         Box(
@@ -121,7 +133,22 @@ fun StudentDetailsScreen(
     }
 
     val student = summary.student
-    var selectedTab by remember { mutableIntStateOf(0) } // 0: Billing History, 1: Payment Records
+    var selectedTab by remember { mutableIntStateOf(0) } // 0: Billing History, 1: Payment Records, 2: Attendance
+
+    // Student Attendance for this student
+    val studentAttendance = remember(attendanceList, student.id) {
+        attendanceList.filter { it.studentId == student.id }.sortedByDescending { it.date }
+    }
+    val presentDaysCount = remember(studentAttendance) {
+        studentAttendance.count { it.isPresent }
+    }
+    val absentDaysCount = remember(studentAttendance) {
+        studentAttendance.count { !it.isPresent }
+    }
+    val totalRecordedDays = studentAttendance.size
+    val attRatePct = if (totalRecordedDays > 0) (presentDaysCount.toFloat() / totalRecordedDays.toFloat() * 100f).toInt() else 0
+    val todayStr = remember { LocalDate.now().toString() }
+    val todayAttendanceRecord = studentAttendance.find { it.date == todayStr }
 
     val startDateObj = try {
         LocalDate.parse(student.startDate)
@@ -426,28 +453,48 @@ fun StudentDetailsScreen(
             summary.currentPeriod?.let { currentP ->
                 item {
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { periodToEdit = currentP }
+                            .testTag("current_period_card"),
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
                         )
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
-                            // Current ongoing header
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    Icons.Default.CalendarMonth,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = Strings.currentOngoingPeriod(currentLanguage, BengaliFormatter.formatDigits(currentP.periodNumber, currentLanguage)),
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
+                            // Current ongoing header with Edit button
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Default.CalendarMonth,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = Strings.currentOngoingPeriod(currentLanguage, BengaliFormatter.formatDigits(currentP.periodNumber, currentLanguage)),
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { periodToEdit = currentP },
+                                    modifier = Modifier.size(28.dp).testTag("edit_current_period_btn")
+                                ) {
+                                    Icon(
+                                        Icons.Default.Edit,
+                                        contentDescription = Strings.editPeriodAction(currentLanguage),
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
                             }
 
                             Spacer(modifier = Modifier.height(6.dp))
@@ -456,11 +503,22 @@ fun StudentDetailsScreen(
                             StatusBadge(status = currentP.status, lang = currentLanguage)
 
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = BengaliFormatter.formatPeriodRange(currentP.startDate, currentP.endDate, currentLanguage),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = BengaliFormatter.formatPeriodRange(currentP.startDate, currentP.endDate, currentLanguage),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = Strings.tapToEditPeriodHint(currentLanguage),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = "${Strings.feeColon(currentLanguage)} ${BengaliFormatter.formatCurrency(currentP.fee, currentLanguage)} | ${Strings.paidColon(currentLanguage)} ${BengaliFormatter.formatCurrency(currentP.paidAmount, currentLanguage)} | ${Strings.remainingColon(currentLanguage)} ${BengaliFormatter.formatCurrency(currentP.remainingAmount, currentLanguage)}",
@@ -493,33 +551,67 @@ fun StudentDetailsScreen(
                 }
             }
 
-            // Tab Row: Billing Periods vs Transactions
+            // Tab Row: Billing Periods vs Transactions vs Attendance
             item {
-                TabRow(
-                    selectedTabIndex = selectedTab,
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    contentColor = MaterialTheme.colorScheme.primary
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 1.dp,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Tab(
-                        selected = selectedTab == 0,
-                        onClick = { selectedTab = 0 },
-                        text = {
-                            Text(
-                                Strings.monthlyBillingHistory(currentLanguage, BengaliFormatter.formatDigits(summary.periods.size, currentLanguage)),
-                                fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Medium
-                            )
-                        }
-                    )
-                    Tab(
-                        selected = selectedTab == 1,
-                        onClick = { selectedTab = 1 },
-                        text = {
-                            Text(
-                                Strings.paymentRecords(currentLanguage, BengaliFormatter.formatDigits(summary.payments.size, currentLanguage)),
-                                fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Medium
-                            )
-                        }
-                    )
+                    TabRow(
+                        selectedTabIndex = selectedTab,
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        contentColor = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        val count0 = BengaliFormatter.formatDigits(summary.periods.size, currentLanguage)
+                        val count1 = BengaliFormatter.formatDigits(summary.payments.size, currentLanguage)
+                        val count2 = BengaliFormatter.formatDigits(studentAttendance.size, currentLanguage)
+
+                        Tab(
+                            selected = selectedTab == 0,
+                            onClick = { selectedTab = 0 },
+                            text = {
+                                Text(
+                                    text = if (currentLanguage == AppLanguage.BN) "বিলিং হিস্ট্রি ($count0)" else "Billing ($count0)",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Medium,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        )
+                        Tab(
+                            selected = selectedTab == 1,
+                            onClick = { selectedTab = 1 },
+                            text = {
+                                Text(
+                                    text = if (currentLanguage == AppLanguage.BN) "পেমেন্ট রেকর্ড ($count1)" else "Payments ($count1)",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Medium,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        )
+                        Tab(
+                            selected = selectedTab == 2,
+                            onClick = { selectedTab = 2 },
+                            text = {
+                                Text(
+                                    text = if (currentLanguage == AppLanguage.BN) "হাজিরা ($count2)" else "Attendance ($count2)",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Medium,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        )
+                    }
                 }
             }
 
@@ -532,10 +624,13 @@ fun StudentDetailsScreen(
                         currentLanguage = currentLanguage,
                         onPayClick = {
                             onRecordPaymentClick(student.id, period.index)
+                        },
+                        onEditClick = {
+                            periodToEdit = period
                         }
                     )
                 }
-            } else {
+            } else if (selectedTab == 1) {
                 // Payment Records List
                 if (summary.payments.isEmpty()) {
                     item {
@@ -552,6 +647,295 @@ fun StudentDetailsScreen(
                             currentLanguage = currentLanguage,
                             onDeleteClick = { onDeletePaymentClick(payment) }
                         )
+                    }
+                }
+            } else {
+                // Tab 2: Attendance History & Daily Attendance Marking for this student
+                item {
+                    // Summary Card
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.primaryContainer),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.FactCheck,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(
+                                        text = if (currentLanguage == AppLanguage.BN) "উপস্থিতির সারসংক্ষেপ" else "Attendance Summary",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (attRatePct >= 75) StatusPaid.copy(alpha = 0.15f) else Color(0xFFFFB300).copy(alpha = 0.2f)
+                                ) {
+                                    Text(
+                                        text = "${BengaliFormatter.formatDigits(attRatePct, currentLanguage)}% ${if (currentLanguage == AppLanguage.BN) "উপস্থিতি" else "Present"}",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (attRatePct >= 75) StatusPaid else Color(0xFFE65100),
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
+                                    .padding(12.dp),
+                                horizontalArrangement = Arrangement.SpaceAround
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = Strings.presentLabel(currentLanguage),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = StatusPaid
+                                    )
+                                    Text(
+                                        text = Strings.totalPresentDays(currentLanguage, BengaliFormatter.formatDigits(presentDaysCount, currentLanguage)),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = Strings.absentLabel(currentLanguage),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = StatusDue
+                                    )
+                                    Text(
+                                        text = Strings.totalAbsentDays(currentLanguage, BengaliFormatter.formatDigits(absentDaysCount, currentLanguage)),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            // Quick mark for Today
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column {
+                                    Text(
+                                        text = Strings.markAttendanceForToday(currentLanguage),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    val tDate = try { LocalDate.parse(todayStr) } catch (_: Exception) { null }
+                                    val tStr = if (tDate != null) BengaliFormatter.formatDateDdMmYyyy(tDate, currentLanguage) else todayStr
+                                    Text(
+                                        text = tStr,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    val isTodayPresent = todayAttendanceRecord?.isPresent == true
+                                    val isTodayAbsent = todayAttendanceRecord?.isPresent == false
+
+                                    Surface(
+                                        onClick = { onToggleAttendance(student.id, todayStr, true) },
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = if (isTodayPresent) StatusPaid else StatusPaid.copy(alpha = 0.12f),
+                                        modifier = Modifier
+                                            .width(96.dp)
+                                            .testTag("student_details_today_present_btn")
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = null,
+                                                tint = if (isTodayPresent) Color.White else StatusPaid,
+                                                modifier = Modifier.size(15.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = Strings.presentLabel(currentLanguage),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                maxLines = 1,
+                                                softWrap = false,
+                                                color = if (isTodayPresent) Color.White else StatusPaid
+                                            )
+                                        }
+                                    }
+
+                                    Surface(
+                                        onClick = { onToggleAttendance(student.id, todayStr, false) },
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = if (isTodayAbsent) StatusDue else StatusDue.copy(alpha = 0.12f),
+                                        modifier = Modifier
+                                            .width(96.dp)
+                                            .testTag("student_details_today_absent_btn")
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = null,
+                                                tint = if (isTodayAbsent) Color.White else StatusDue,
+                                                modifier = Modifier.size(15.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = Strings.absentLabel(currentLanguage),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                maxLines = 1,
+                                                softWrap = false,
+                                                color = if (isTodayAbsent) Color.White else StatusDue
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Date-by-date history
+                if (studentAttendance.isEmpty()) {
+                    item {
+                        EmptyState(
+                            icon = Icons.Default.FactCheck,
+                            title = Strings.noAttendanceRecords(currentLanguage),
+                            subtitle = if (currentLanguage == AppLanguage.BN) "উপরের 'উপস্থিত' বা 'অনুপস্থিত' বাটনে ট্যাপ করে হাজিরা রেকর্ড করুন।" else "Mark today's attendance using the buttons above."
+                        )
+                    }
+                } else {
+                    items(studentAttendance) { att ->
+                        val dateObj = try { LocalDate.parse(att.date) } catch (_: Exception) { null }
+                        val dateFormatted = if (dateObj != null) BengaliFormatter.formatDateDdMmYyyy(dateObj, currentLanguage) else att.date
+                        val dayName = if (dateObj != null) {
+                            if (currentLanguage == AppLanguage.BN) {
+                                when (dateObj.dayOfWeek) {
+                                    java.time.DayOfWeek.SATURDAY -> "শনিবার"
+                                    java.time.DayOfWeek.SUNDAY -> "রবিবার"
+                                    java.time.DayOfWeek.MONDAY -> "সোমবার"
+                                    java.time.DayOfWeek.TUESDAY -> "মঙ্গলবার"
+                                    java.time.DayOfWeek.WEDNESDAY -> "বুধবার"
+                                    java.time.DayOfWeek.THURSDAY -> "বৃহস্পতিবার"
+                                    java.time.DayOfWeek.FRIDAY -> "শুক্রবার"
+                                }
+                            } else {
+                                dateObj.dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() }
+                            }
+                        } else ""
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(10.dp)
+                                            .clip(CircleShape)
+                                            .background(if (att.isPresent) StatusPaid else StatusDue)
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(
+                                            text = "$dateFormatted ($dayName)",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            text = if (att.isPresent) "✓ ${Strings.presentLabel(currentLanguage)}" else "✗ ${Strings.absentLabel(currentLanguage)}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = if (att.isPresent) StatusPaid else StatusDue
+                                        )
+                                    }
+                                }
+
+                                // Quick toggle switch right on history item
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Surface(
+                                        onClick = { onToggleAttendance(student.id, att.date, true) },
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = if (att.isPresent) StatusPaid else StatusPaid.copy(alpha = 0.12f),
+                                        modifier = Modifier.width(76.dp)
+                                    ) {
+                                        Text(
+                                            text = Strings.presentLabel(currentLanguage),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            maxLines = 1,
+                                            softWrap = false,
+                                            textAlign = TextAlign.Center,
+                                            color = if (att.isPresent) Color.White else StatusPaid,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 5.dp)
+                                        )
+                                    }
+
+                                    Surface(
+                                        onClick = { onToggleAttendance(student.id, att.date, false) },
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = if (!att.isPresent) StatusDue else StatusDue.copy(alpha = 0.12f),
+                                        modifier = Modifier.width(76.dp)
+                                    ) {
+                                        Text(
+                                            text = Strings.absentLabel(currentLanguage),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            maxLines = 1,
+                                            softWrap = false,
+                                            textAlign = TextAlign.Center,
+                                            color = if (!att.isPresent) Color.White else StatusDue,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 5.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -580,7 +964,7 @@ fun StudentDetailsScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    OutlinedTextField(
+                    AppOutlinedTextField(
                         value = pauseDateInput,
                         onValueChange = { pauseDateInput = it },
                         label = { Text(Strings.pauseDateLabel(currentLanguage)) },
@@ -652,7 +1036,7 @@ fun StudentDetailsScreen(
                         }
                     }
 
-                    OutlinedTextField(
+                    AppOutlinedTextField(
                         value = resumeDateInput,
                         onValueChange = { resumeDateInput = it },
                         label = { Text(Strings.resumeDateLabel(currentLanguage)) },
@@ -771,43 +1155,94 @@ fun StudentDetailsScreen(
             }
         )
     }
+
+    // Edit Period Dialog
+    periodToEdit?.let { p ->
+        EditPeriodDialog(
+            period = p,
+            currentLanguage = currentLanguage,
+            onDismissRequest = { periodToEdit = null },
+            onSave = { newStartDate, modifiedPayments, newPayment, deletedIds ->
+                onSavePeriodDetails(
+                    student.id,
+                    p.index,
+                    newStartDate,
+                    modifiedPayments,
+                    newPayment,
+                    deletedIds
+                )
+                periodToEdit = null
+            }
+        )
+    }
 }
 
 @Composable
 fun BillingPeriodDetailCard(
     period: BillingPeriod,
     currentLanguage: AppLanguage = AppLanguage.BN,
-    onPayClick: () -> Unit
+    onPayClick: () -> Unit,
+    onEditClick: () -> Unit = {}
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onEditClick() }
+            .testTag("period_card_${period.index}"),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
-            // Header Row: Period Title & Status Badge
+            // Header Row: Period Title, Edit Icon & Status Badge
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = Strings.periodTitle(currentLanguage, BengaliFormatter.formatDigits(period.periodNumber, currentLanguage)),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    IconButton(
+                        onClick = onEditClick,
+                        modifier = Modifier
+                            .size(28.dp)
+                            .testTag("edit_period_btn_${period.index}")
+                    ) {
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = Strings.editPeriodAction(currentLanguage),
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+                StatusBadge(status = period.status, lang = currentLanguage)
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Date Range & Tap to edit hint
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = Strings.periodTitle(currentLanguage, BengaliFormatter.formatDigits(period.periodNumber, currentLanguage)),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    text = BengaliFormatter.formatPeriodRange(period.startDate, period.endDate, currentLanguage),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                StatusBadge(status = period.status, lang = currentLanguage)
+                Text(
+                    text = Strings.tapToEditPeriodHint(currentLanguage),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
+                )
             }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Date Range
-            Text(
-                text = BengaliFormatter.formatPeriodRange(period.startDate, period.endDate, currentLanguage),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
 
             Spacer(modifier = Modifier.height(10.dp))
 

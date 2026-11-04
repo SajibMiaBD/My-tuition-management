@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.AppDatabase
+import com.example.data.AttendanceEntity
 import com.example.data.PaymentEntity
 import com.example.data.SampleDataProvider
 import com.example.data.StudentEntity
@@ -29,6 +30,7 @@ sealed class Screen(val title: String) {
     data object Dues : Screen("বকেয়া")
     data object Settings : Screen("সেটিংস")
     data class StudentDetails(val studentId: Long) : Screen("শিক্ষার্থীর বিবরণ")
+    data object Attendance : Screen("শিক্ষার্থীদের উপস্থিতি")
 }
 
 data class PaymentWithStudent(
@@ -45,7 +47,7 @@ class TuitionViewModel(application: Application) : AndroidViewModel(application)
 
     init {
         val database = AppDatabase.getDatabase(application)
-        repository = TuitionRepository(database.studentDao(), database.paymentDao())
+        repository = TuitionRepository(database.studentDao(), database.paymentDao(), database.attendanceDao())
 
         // Fresh installs must always start with empty database (clean slate)
         // Never auto-populate sample students on install
@@ -100,9 +102,10 @@ class TuitionViewModel(application: Application) : AndroidViewModel(application)
     }
 
     // Available years dynamically derived from data & current year
-    val availableYears: StateFlow<List<Int>> = combine(repository.allStudents, repository.allPayments) { students, payments ->
-        val years = mutableSetOf(today.year, today.year - 1, today.year - 2, today.year + 1)
+    val availableYears: StateFlow<List<Int>> = combine(repository.allStudents, repository.allPayments, _selectedYear) { students, payments, currentSelected ->
+        val years = mutableSetOf(today.year, today.year - 1, today.year + 1, currentSelected)
         students.forEach { s ->
+            if (s.academicYear > 0) years.add(s.academicYear)
             try {
                 years.add(LocalDate.parse(s.startDate).year)
             } catch (_: Exception) {}
@@ -113,7 +116,7 @@ class TuitionViewModel(application: Application) : AndroidViewModel(application)
             } catch (_: Exception) {}
         }
         years.sortedDescending()
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), listOf(today.year + 1, today.year, today.year - 1, today.year - 2))
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), listOf(today.year + 1, today.year, today.year - 1))
 
     // Navigation Stack
     private val _navStack = MutableStateFlow<List<Screen>>(listOf(Screen.Dashboard))
@@ -145,6 +148,21 @@ class TuitionViewModel(application: Application) : AndroidViewModel(application)
     val allStudentsFlow = repository.allStudents
     val allPaymentsFlow = repository.allPayments
 
+    // Students strictly belonging to the currently selected academic year
+    val currentYearStudents: StateFlow<List<StudentEntity>> = combine(
+        allStudentsFlow,
+        _selectedYear
+    ) { students, year ->
+        students.filter { student ->
+            val acYear = if (student.academicYear > 0) student.academicYear else try {
+                LocalDate.parse(student.startDate).year
+            } catch (_: Exception) {
+                today.year
+            }
+            acYear == year
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     // Search and Filter State
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
@@ -160,14 +178,15 @@ class TuitionViewModel(application: Application) : AndroidViewModel(application)
         _studentFilter.value = filter
     }
 
-    // Computed Student Summaries
+    // Computed Student Summaries strictly isolated by selected academic year
     val studentSummaries: StateFlow<List<StudentBillingSummary>> = combine(
-        allStudentsFlow,
-        allPaymentsFlow
-    ) { students, payments ->
+        currentYearStudents,
+        allPaymentsFlow,
+        _selectedYear
+    ) { students, payments, year ->
         students.map { student ->
             val studentPayments = payments.filter { it.studentId == student.id }
-            BillingEngine.computeStudentSummary(student, studentPayments, today)
+            BillingEngine.computeStudentSummary(student, studentPayments, today, year)
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -224,6 +243,60 @@ class TuitionViewModel(application: Application) : AndroidViewModel(application)
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    // Attendance Flows and Actions
+    val allAttendanceFlow = repository.allAttendance
+    val allAttendance: StateFlow<List<AttendanceEntity>> = allAttendanceFlow.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        emptyList()
+    )
+
+    // Today's attendance summary for current year students: Pair(presentCount, totalStudents)
+    val todayAttendanceSummary: StateFlow<Pair<Int, Int>> = combine(
+        currentYearStudents,
+        allAttendanceFlow
+    ) { students, attendance ->
+        val todayStr = today.toString()
+        val todayMap = attendance.filter { it.date == todayStr }.associateBy { it.studentId }
+        val presentCount = students.count { s -> todayMap[s.id]?.isPresent == true }
+        Pair(presentCount, students.size)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), Pair(0, 0))
+
+    fun recordAttendance(studentId: Long, date: String, isPresent: Boolean, notes: String = "") {
+        viewModelScope.launch {
+            val yr = try { LocalDate.parse(date).year } catch (_: Exception) { _selectedYear.value }
+            repository.recordAttendance(
+                studentId = studentId,
+                date = date,
+                isPresent = isPresent,
+                academicYear = yr,
+                notes = notes
+            )
+        }
+    }
+
+    fun markAllAttendanceForDate(date: String, isPresent: Boolean) {
+        viewModelScope.launch {
+            val students = currentYearStudents.value
+            val yr = try { LocalDate.parse(date).year } catch (_: Exception) { _selectedYear.value }
+            val records = students.map { s ->
+                AttendanceEntity(
+                    studentId = s.id,
+                    date = date,
+                    isPresent = isPresent,
+                    academicYear = yr
+                )
+            }
+            repository.recordBulkAttendance(records)
+        }
+    }
+
+    fun deleteAttendance(studentId: Long, date: String) {
+        viewModelScope.launch {
+            repository.deleteAttendance(studentId, date)
+        }
+    }
+
     // Dialog & Action States
     val showAddEditStudentDialog = MutableStateFlow(false)
     val studentToEdit = MutableStateFlow<StudentEntity?>(null)
@@ -263,12 +336,28 @@ class TuitionViewModel(application: Application) : AndroidViewModel(application)
     }
 
     // CRUD Operations
+    val copyStatusMessage = MutableStateFlow<String?>(null)
+
+    fun dismissCopyStatus() {
+        copyStatusMessage.value = null
+    }
+
+    fun copyStudentsFromYear(sourceYear: Int, targetYear: Int = _selectedYear.value) {
+        viewModelScope.launch {
+            val count = repository.copyStudentsToYear(sourceYear, targetYear)
+            val countStr = com.example.util.BengaliFormatter.formatDigits(count, _currentLanguage.value)
+            val yrStr = com.example.util.BengaliFormatter.formatDigits(targetYear, _currentLanguage.value)
+            copyStatusMessage.value = com.example.util.Strings.copySuccessMsg(_currentLanguage.value, countStr, yrStr)
+        }
+    }
+
     fun saveStudent(
         name: String,
         phone: String,
         startDate: String,
         monthlyFee: Double,
         notes: String,
+        academicYear: Int = _selectedYear.value,
         existingId: Long = 0
     ) {
         viewModelScope.launch {
@@ -286,7 +375,8 @@ class TuitionViewModel(application: Application) : AndroidViewModel(application)
                             isPaused = current?.isPaused ?: false,
                             pausedDate = current?.pausedDate,
                             pauseHistoryJson = current?.pauseHistoryJson ?: "[]",
-                            activeCycleStartDate = current?.activeCycleStartDate
+                            activeCycleStartDate = current?.activeCycleStartDate,
+                            academicYear = academicYear
                         )
                     )
                 } else {
@@ -296,7 +386,8 @@ class TuitionViewModel(application: Application) : AndroidViewModel(application)
                             phone = phone.trim(),
                             startDate = startDate,
                             monthlyFee = monthlyFee,
-                            notes = notes.trim()
+                            notes = notes.trim(),
+                            academicYear = academicYear
                         )
                     )
                 }
@@ -542,6 +633,58 @@ class TuitionViewModel(application: Application) : AndroidViewModel(application)
                 )
             }
             repository.updateStudent(updated)
+        }
+    }
+
+    /**
+     * Updates reading start date for a period (which dynamically shifts all subsequent periods),
+     * updates modified payment records (date, amount, notes), inserts new payment if any,
+     * and deletes removed payments.
+     */
+    fun updatePeriodDetails(
+        studentId: Long,
+        periodIndex: Int,
+        newStartDate: String,
+        updatedPayments: List<PaymentEntity>,
+        newPayment: PaymentEntity?,
+        deletedPaymentIds: List<Long>
+    ) {
+        viewModelScope.launch {
+            try {
+                val student = repository.getAllStudentsList().find { it.id == studentId } ?: return@launch
+                val currentStarts = com.example.domain.BillingEngine.parseCustomPeriodStarts(student.customPeriodStartsJson).toMutableMap()
+
+                val updatedStudent = if (periodIndex == 0) {
+                    currentStarts[0] = newStartDate
+                    student.copy(
+                        startDate = newStartDate,
+                        customPeriodStartsJson = com.example.domain.BillingEngine.formatCustomPeriodStarts(currentStarts)
+                    )
+                } else {
+                    currentStarts[periodIndex] = newStartDate
+                    student.copy(
+                        customPeriodStartsJson = com.example.domain.BillingEngine.formatCustomPeriodStarts(currentStarts)
+                    )
+                }
+                repository.updateStudent(updatedStudent)
+
+                // Delete payments marked for deletion
+                for (id in deletedPaymentIds) {
+                    repository.deletePaymentById(id)
+                }
+
+                // Update modified payments
+                for (payment in updatedPayments) {
+                    repository.updatePayment(payment)
+                }
+
+                // Insert new payment if added
+                if (newPayment != null && newPayment.amount > 0) {
+                    repository.insertPayment(newPayment)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("TuitionViewModel", "Error saving period edits: ${e.message}", e)
+            }
         }
     }
 }

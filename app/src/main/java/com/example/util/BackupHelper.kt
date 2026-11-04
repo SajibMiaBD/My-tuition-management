@@ -43,6 +43,8 @@ object BackupHelper {
             sObj.put("pausedDate", s.pausedDate ?: JSONObject.NULL)
             sObj.put("pauseHistoryJson", s.pauseHistoryJson)
             sObj.put("activeCycleStartDate", s.activeCycleStartDate ?: JSONObject.NULL)
+            sObj.put("academicYear", s.academicYear)
+            sObj.put("customPeriodStartsJson", s.customPeriodStartsJson)
             studentsArray.put(sObj)
         }
         root.put("students", studentsArray)
@@ -77,19 +79,29 @@ object BackupHelper {
                 val sObj = studentsArray.getJSONObject(i)
                 val pDate = if (sObj.isNull("pausedDate")) null else sObj.optString("pausedDate", null)
                 val cDate = if (sObj.isNull("activeCycleStartDate")) null else sObj.optString("activeCycleStartDate", null)
+                val sDate = sObj.getString("startDate")
+                val fallbackYear = try {
+                    java.time.LocalDate.parse(sDate).year
+                } catch (_: Exception) {
+                    2026
+                }
+                val acYear = sObj.optInt("academicYear", fallbackYear)
+                val cpJson = sObj.optString("customPeriodStartsJson", "{}")
                 studentsList.add(
                     StudentEntity(
                         id = sObj.optLong("id", 0L),
                         name = sObj.getString("name"),
                         phone = sObj.optString("phone", ""),
-                        startDate = sObj.getString("startDate"),
+                        startDate = sDate,
                         monthlyFee = sObj.getDouble("monthlyFee"),
                         notes = sObj.optString("notes", ""),
                         createdAt = sObj.optLong("createdAt", System.currentTimeMillis()),
                         isPaused = sObj.optBoolean("isPaused", false),
                         pausedDate = pDate,
                         pauseHistoryJson = sObj.optString("pauseHistoryJson", "[]"),
-                        activeCycleStartDate = cDate
+                        activeCycleStartDate = cDate,
+                        academicYear = acYear,
+                        customPeriodStartsJson = cpJson
                     )
                 )
             }
